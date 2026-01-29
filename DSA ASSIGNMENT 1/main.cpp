@@ -211,6 +211,10 @@ int main()
         processInput(window);
         glfwPollEvents();
 
+        //get current framebuffer size
+        int display_w, display_h;
+        glfwGetFramebufferSize(window, &display_w, &display_h);
+
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -218,9 +222,20 @@ int main()
 
         // Main Finance Tracker Window
         {
-            ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
-            ImGui::Begin("Finance Tracker", nullptr, ImGuiWindowFlags_MenuBar);
+            /*ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);*/
+
+            ImGui::SetNextWindowPos(ImVec2(0, 0));
+            ImGui::SetNextWindowSize(ImVec2(display_w, display_h));
+
+            //remove padding
+            ImGui::Begin("Finance Tracker", nullptr, 
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoCollapse |
+                ImGuiWindowFlags_NoSavedSettings | 
+                ImGuiWindowFlags_NoBringToFrontOnFocus |
+                ImGuiWindowFlags_MenuBar);
 
             // Menu bar
             if (ImGui::BeginMenuBar())
@@ -454,6 +469,7 @@ int main()
         // Add Transaction Window
         if (show_add_transaction_window)
         {
+
             ImGui::SetNextWindowSize(ImVec2(400, 350), ImGuiCond_FirstUseEver);
             ImGui::Begin("Add New Transaction", &show_add_transaction_window);
 
@@ -547,8 +563,8 @@ int main()
 
         // Rendering
         ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
+        /*int display_w, display_h;
+        glfwGetFramebufferSize(window, &display_w, &display_h);*/
         glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
