@@ -26,6 +26,13 @@ enum class TransactionType
     Transfer
 };
 
+// View modes
+enum class ViewMode
+{
+    ByType,
+    All
+};
+
 // Transaction structure
 struct Transaction
 {
@@ -167,6 +174,7 @@ int main()
     bool show_add_transaction_window = false;
     Transaction new_transaction;
     int selected_tab_for_new = 0; // 0=Income, 1=Expense, 2=Transfer
+    ViewMode view_mode = ViewMode::All;
 
     // Add some sample transactions
     {
@@ -244,122 +252,199 @@ int main()
                 new_transaction = Transaction(); // Reset
             }
 
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 300);
+            ImGui::Text("View Mode:");
+            ImGui::SameLine();
+            if (ImGui::RadioButton("All", view_mode == ViewMode::All))
+                view_mode = ViewMode::All;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("By Type", view_mode == ViewMode::ByType))
+                view_mode = ViewMode::ByType;
+
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
 
-            // Transactions tabs
-            if (ImGui::BeginTabBar("TransactionTabs"))
+            // View Mode: Separate tabs for each transaction type
+            if (view_mode == ViewMode::ByType)
             {
-                // Income Tab
-                if (ImGui::BeginTabItem("Income"))
+                if (ImGui::BeginTabBar("TransactionTabs"))
                 {
-                    ImGui::Text("Income Transactions");
-                    ImGui::Separator();
-
-                    if (ImGui::BeginTable("IncomeTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+                    // Income Tab
+                    if (ImGui::BeginTabItem("Income"))
                     {
-                        ImGui::TableSetupColumn("Date", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
-                        ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-                        ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableHeadersRow();
+                        ImGui::Text("Income Transactions");
+                        ImGui::Separator();
 
-                        for (size_t i = 0; i < g_transactions.size(); i++)
+                        if (ImGui::BeginTable("IncomeTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
                         {
-                            const auto &t = g_transactions[i];
-                            if (t.type == TransactionType::Income)
-                            {
-                                ImGui::TableNextRow();
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.date);
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.description);
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.category);
-                                ImGui::TableNextColumn();
-                                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "+$%.2f", t.amount);
-                            }
-                        }
-                        ImGui::EndTable();
-                    }
-                    ImGui::EndTabItem();
-                }
+                            ImGui::TableSetupColumn("Date", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
+                            ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                            ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableHeadersRow();
 
-                // Expense Tab
-                if (ImGui::BeginTabItem("Expense"))
+                            for (size_t i = 0; i < g_transactions.size(); i++)
+                            {
+                                const auto &t = g_transactions[i];
+                                if (t.type == TransactionType::Income)
+                                {
+                                    ImGui::TableNextRow();
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.date);
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.description);
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.category);
+                                    ImGui::TableNextColumn();
+                                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "+$%.2f", t.amount);
+                                }
+                            }
+                            ImGui::EndTable();
+                        }
+                        ImGui::EndTabItem();
+                    }
+
+                    // Expense Tab
+                    if (ImGui::BeginTabItem("Expense"))
+                    {
+                        ImGui::Text("Expense Transactions");
+                        ImGui::Separator();
+
+                        if (ImGui::BeginTable("ExpenseTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+                        {
+                            ImGui::TableSetupColumn("Date", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
+                            ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                            ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableHeadersRow();
+
+                            for (size_t i = 0; i < g_transactions.size(); i++)
+                            {
+                                const auto &t = g_transactions[i];
+                                if (t.type == TransactionType::Expense)
+                                {
+                                    ImGui::TableNextRow();
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.date);
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.description);
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.category);
+                                    ImGui::TableNextColumn();
+                                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "-$%.2f", t.amount);
+                                }
+                            }
+                            ImGui::EndTable();
+                        }
+                        ImGui::EndTabItem();
+                    }
+
+                    // Transfer Tab
+                    if (ImGui::BeginTabItem("Transfer"))
+                    {
+                        ImGui::Text("Transfer Transactions");
+                        ImGui::Separator();
+
+                        if (ImGui::BeginTable("TransferTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+                        {
+                            ImGui::TableSetupColumn("Date", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
+                            ImGui::TableSetupColumn("From", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableSetupColumn("To", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableHeadersRow();
+
+                            for (size_t i = 0; i < g_transactions.size(); i++)
+                            {
+                                const auto &t = g_transactions[i];
+                                if (t.type == TransactionType::Transfer)
+                                {
+                                    ImGui::TableNextRow();
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.date);
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.description);
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.fromAccount);
+                                    ImGui::TableNextColumn();
+                                    ImGui::Text("%s", t.toAccount);
+                                    ImGui::TableNextColumn();
+                                    ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "$%.2f", t.amount);
+                                }
+                            }
+                            ImGui::EndTable();
+                        }
+                        ImGui::EndTabItem();
+                    }
+
+                    ImGui::EndTabBar();
+                }
+            }
+            // View Mode: All transactions in one table
+            else
+            {
+                ImGui::Text("All Transactions");
+                ImGui::Separator();
+
+                if (ImGui::BeginTable("AllTransactionsTable", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable))
                 {
-                    ImGui::Text("Expense Transactions");
-                    ImGui::Separator();
+                    ImGui::TableSetupColumn("Date", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                    ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                    ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
+                    ImGui::TableSetupColumn("Category/Account", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                    ImGui::TableSetupColumn("Details", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                    ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                    ImGui::TableHeadersRow();
 
-                    if (ImGui::BeginTable("ExpenseTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+                    for (size_t i = 0; i < g_transactions.size(); i++)
                     {
-                        ImGui::TableSetupColumn("Date", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
-                        ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-                        ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableHeadersRow();
+                        const auto &t = g_transactions[i];
+                        ImGui::TableNextRow();
 
-                        for (size_t i = 0; i < g_transactions.size(); i++)
-                        {
-                            const auto &t = g_transactions[i];
-                            if (t.type == TransactionType::Expense)
-                            {
-                                ImGui::TableNextRow();
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.date);
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.description);
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.category);
-                                ImGui::TableNextColumn();
-                                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "-$%.2f", t.amount);
-                            }
-                        }
-                        ImGui::EndTable();
+                        // Date
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%s", t.date);
+
+                        // Type
+                        ImGui::TableNextColumn();
+                        if (t.type == TransactionType::Income)
+                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Income");
+                        else if (t.type == TransactionType::Expense)
+                            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Expense");
+                        else
+                            ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Transfer");
+
+                        // Description
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%s", t.description);
+
+                        // Category/Account
+                        ImGui::TableNextColumn();
+                        if (t.type == TransactionType::Transfer)
+                            ImGui::Text("%s", t.fromAccount);
+                        else
+                            ImGui::Text("%s", t.category);
+
+                        // Details (To account for transfers, empty for others)
+                        ImGui::TableNextColumn();
+                        if (t.type == TransactionType::Transfer)
+                            ImGui::Text("-> %s", t.toAccount);
+                        else
+                            ImGui::Text("-");
+
+                        // Amount
+                        ImGui::TableNextColumn();
+                        if (t.type == TransactionType::Income)
+                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "+$%.2f", t.amount);
+                        else if (t.type == TransactionType::Expense)
+                            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "-$%.2f", t.amount);
+                        else
+                            ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "$%.2f", t.amount);
                     }
-                    ImGui::EndTabItem();
+                    ImGui::EndTable();
                 }
-
-                // Transfer Tab
-                if (ImGui::BeginTabItem("Transfer"))
-                {
-                    ImGui::Text("Transfer Transactions");
-                    ImGui::Separator();
-
-                    if (ImGui::BeginTable("TransferTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
-                    {
-                        ImGui::TableSetupColumn("Date", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
-                        ImGui::TableSetupColumn("From", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableSetupColumn("To", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                        ImGui::TableHeadersRow();
-
-                        for (size_t i = 0; i < g_transactions.size(); i++)
-                        {
-                            const auto &t = g_transactions[i];
-                            if (t.type == TransactionType::Transfer)
-                            {
-                                ImGui::TableNextRow();
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.date);
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.description);
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.fromAccount);
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%s", t.toAccount);
-                                ImGui::TableNextColumn();
-                                ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "$%.2f", t.amount);
-                            }
-                        }
-                        ImGui::EndTable();
-                    }
-                    ImGui::EndTabItem();
-                }
-
-                ImGui::EndTabBar();
             }
 
             ImGui::Text("\nTotal Transactions: %zu", g_transactions.size());
