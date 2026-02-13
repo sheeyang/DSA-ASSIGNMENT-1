@@ -98,10 +98,10 @@ void renderSummarySection()
 {
     ImGui::Text("=== Account Summary ===");
     ImGui::Separator();
-    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Total Income:  $%.2f", calculateTotalIncome());
-    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Total Expense: $%.2f", calculateTotalExpense());
+    ImGui::TextColored(COLOR_INCOME, "Total Income:  $%.2f", calculateTotalIncome());
+    ImGui::TextColored(COLOR_EXPENSE, "Total Expense: $%.2f", calculateTotalExpense());
     float balance = calculateBalance();
-    ImVec4 balanceColor = balance >= 0 ? ImVec4(0.4f, 1.0f, 0.4f, 1.0f) : ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+    ImVec4 balanceColor = balance >= 0 ? COLOR_POSITIVE : COLOR_NEGATIVE;
     ImGui::TextColored(balanceColor, "Balance:       $%.2f", balance);
     ImGui::Separator();
     ImGui::Spacing();
@@ -138,7 +138,7 @@ void renderTransactionsByType()
                         ImGui::TableNextColumn();
                         ImGui::Text(t.category.c_str());
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "+$%.2f", t.amount);
+                        ImGui::TextColored(COLOR_INCOME, "+$%.2f", t.amount);
                     }
                 }
                 ImGui::EndTable();
@@ -173,7 +173,7 @@ void renderTransactionsByType()
                         ImGui::TableNextColumn();
                         ImGui::Text(t.category.c_str());
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "-$%.2f", t.amount);
+                        ImGui::TextColored(COLOR_EXPENSE, "-$%.2f", t.amount);
                     }
                 }
                 ImGui::EndTable();
@@ -211,7 +211,7 @@ void renderTransactionsByType()
                         ImGui::TableNextColumn();
                         ImGui::Text(t.toAccount->accountName.c_str());
                         ImGui::TableNextColumn();
-                        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "$%.2f", t.amount);
+                        ImGui::TextColored(COLOR_TRANSFER, "$%.2f", t.amount);
                     }
                 }
                 ImGui::EndTable();
@@ -254,11 +254,11 @@ void renderAllTransactions()
             // Type
             ImGui::TableNextColumn();
             if (t.type == TransactionType::Income)
-                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Income");
+                ImGui::TextColored(COLOR_INCOME, "Income");
             else if (t.type == TransactionType::Expense)
-                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Expense");
+                ImGui::TextColored(COLOR_EXPENSE, "Expense");
             else
-                ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Transfer");
+                ImGui::TextColored(COLOR_TRANSFER, "Transfer");
 
             // Description
             ImGui::TableNextColumn();
@@ -285,11 +285,11 @@ void renderAllTransactions()
             // Amount
             ImGui::TableNextColumn();
             if (t.type == TransactionType::Income)
-                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "+$%.2f", t.amount);
+                ImGui::TextColored(COLOR_INCOME, "+$%.2f", t.amount);
             else if (t.type == TransactionType::Expense)
-                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "-$%.2f", t.amount);
+                ImGui::TextColored(COLOR_EXPENSE, "-$%.2f", t.amount);
             else
-                ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "$%.2f", t.amount);
+                ImGui::TextColored(COLOR_TRANSFER, "$%.2f", t.amount);
 
             ImGui::TableNextColumn();
 
@@ -343,11 +343,7 @@ void renderAccountsBreakdown(bool &show_delete_account, int &deleteBufferAccount
             ImGui::Text(accounts[i].accountName.c_str());
             ImGui::TableNextColumn();
 
-            // tried to to ternary here but idk why it didnt work so i did this instead
-            ImVec4 green = {0.4f, 1.0f, 0.4f, 1.0f};
-            ImVec4 red = {1.0f, 0.4f, 0.4f, 1.0f};
-
-            ImVec4 textColour = accounts[i].amount > 0.0f ? green : red;
+            ImVec4 textColour = accounts[i].amount >= 0.0f ? COLOR_POSITIVE : COLOR_NEGATIVE;
             ImGui::TextColored(textColour, "$%.2f", accounts[i].amount);
 
             ImGui::TableNextColumn();
@@ -436,7 +432,7 @@ void renderDeleteAccountWindow(bool &show_delete_account, int &deleteBufferAccou
     ImGui::SetWindowSize(ImVec2(400, 350), ImGuiCond_FirstUseEver);
     ImGui::Begin("Delete Account", &show_delete_account);
 
-    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+    ImGui::TextColored(COLOR_EXPENSE,
                        "There is an outstanding balance of $%.2f in %s", accounts[deleteBufferAccountIndex].amount, accounts[deleteBufferAccountIndex].accountName.c_str());
     ImGui::Text("Select an Account to transfer the balance to:");
 
