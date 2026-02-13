@@ -60,7 +60,8 @@ int main()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
 
     // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
+    SetupImGuiStyle();
+    // ImGui::StyleColorsDark();
     // ImGui::StyleColorsLight();
     // ImGui::StyleColorsClassic();
 
@@ -69,7 +70,7 @@ int main()
     ImGui_ImplOpenGL3_Init("#version 330");
 
     // Application state
-    ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.0f);
+    ImVec4 clear_color = ImVec4(0.94f, 0.94f, 0.94f, 1.0f);
     bool show_add_transaction_window = false;
     Transaction new_transaction;
     int selected_tab_for_new = 0; // 0=Income, 1=Expense, 2=Transfer

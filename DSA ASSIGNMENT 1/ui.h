@@ -4,6 +4,9 @@
 #include "types.h"
 #include "globals.h"
 
+// Setup custom ImGui theme
+void SetupImGuiStyle();
+
 // UI rendering functions
 void renderSummarySection();
 void renderTransactionsByType();
