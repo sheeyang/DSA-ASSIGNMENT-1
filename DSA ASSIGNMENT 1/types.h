@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstring>
+#include <time.h>
 
 // Transaction types
 enum class TransactionType

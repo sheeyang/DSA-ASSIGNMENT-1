@@ -139,6 +139,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="calculations.cpp" />
+    <ClCompile Include="callbacks.cpp" />
+    <ClCompile Include="globals.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Dependencies\imgui\imgui.cpp" />
     <ClCompile Include="Dependencies\imgui\imgui_demo.cpp" />
@@ -147,6 +150,14 @@
     <ClCompile Include="Dependencies\imgui\imgui_widgets.cpp" />
     <ClCompile Include="Dependencies\imgui\imgui_impl_glfw.cpp" />
     <ClCompile Include="Dependencies\imgui\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="ui.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="calculations.h" />
+    <ClInclude Include="callbacks.h" />
+    <ClInclude Include="globals.h" />
+    <ClInclude Include="types.h" />
+    <ClInclude Include="ui.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
