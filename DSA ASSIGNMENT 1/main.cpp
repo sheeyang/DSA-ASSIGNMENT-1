@@ -13,10 +13,12 @@
 #include <string>
 #include <ctime>
 #include <cstring>
+#include <algorithm>
 
 // Window dimensions
 const unsigned int WINDOW_WIDTH = 1280;
 const unsigned int WINDOW_HEIGHT = 720;
+constexpr int TEXT_BUFFER = 256;
 
 // Transaction types
 enum class TransactionType
@@ -33,25 +35,53 @@ enum class ViewMode
     All
 };
 
+struct Account
+{
+    std::string accountName;
+    float amount;
+    bool deleted;
+
+    Account()
+    {
+        accountName = "";
+        amount = 0.0f;
+        deleted = false;
+    }
+
+    void withdraw(float amt) { amount -= amt; }
+    void deposit(float amt) { amount += amt; }
+    void transfer(Account *to, float amt)
+    {
+        amount -= amt;
+        to->amount += amt;
+    }
+
+    bool operator==(const Account &other) const
+    {
+        return (accountName == other.accountName);
+    }
+};
+
 // Transaction structure
 struct Transaction
 {
     TransactionType type;
     char description[256];
     float amount;
-    char category[64];
+    std::string category;
     char date[32];
-    char fromAccount[64]; // For transfers
-    char toAccount[64];   // For transfers
+
+    Account *fromAccount; // For transfers
+    Account *toAccount;   // For transfers
 
     Transaction()
     {
         type = TransactionType::Income;
         memset(description, 0, sizeof(description));
-        memset(category, 0, sizeof(category));
+        category = "";
         memset(date, 0, sizeof(date));
-        memset(fromAccount, 0, sizeof(fromAccount));
-        memset(toAccount, 0, sizeof(toAccount));
+        fromAccount = nullptr;
+        toAccount = nullptr;
         amount = 0.0f;
 
         // Set default date to today
@@ -64,6 +94,19 @@ struct Transaction
 
 // Global transaction storage
 std::vector<Transaction> g_transactions;
+
+// category list
+std::vector<std::string> categories{"FOOD", "SOCIAL", "SHOPPING", "TRANSPORT", "EDUCATION", "SALARY", "INTEREST"};
+std::string _currentCategory;
+char _inputCategoryBuffer[TEXT_BUFFER]{'\0'};
+static int _categoryIndex = 0;
+bool _inputFieldEmpty{true};
+
+// accounts list
+std::vector<Account> accounts;
+static int _fromAccountIndex = 0;
+static int _toAccountIndex = 0;
+char _inputAccountBuffer[TEXT_BUFFER]{'\0'};
 
 // Get current date as string
 std::string getCurrentDate()
@@ -176,30 +219,67 @@ int main()
     int selected_tab_for_new = 0; // 0=Income, 1=Expense, 2=Transfer
     ViewMode view_mode = ViewMode::All;
 
+    // manage categories
+    bool show_category_window = false;
+
+    // manage deleting account with balance
+    Account new_account;
+    bool show_add_account = false;
+    bool show_delete_account = false;
+    int deleteBufferAccountIndex{-1};
+    int transferBufferAccountIndex{-1};
+
+    // add sample accounts
+    {
+        Account a1;
+        a1.accountName = "SAVINGS";
+        a1.amount = 0.0f;
+        accounts.push_back(a1);
+
+        Account a2;
+        a2.accountName = "EXPENSES";
+        a2.amount = 0.0f;
+        accounts.push_back(a2);
+
+        Account a3;
+        a3.accountName = "EMERGENCY";
+        a3.amount = 0.0f;
+        accounts.push_back(a3);
+
+        accounts.reserve(20);
+    }
+
     // Add some sample transactions
     {
         Transaction t1;
         t1.type = TransactionType::Income;
         strcpy_s(t1.description, "Monthly Salary");
-        strcpy_s(t1.category, "Salary");
+        t1.category = "SALARY";
         t1.amount = 5000.0f;
+        t1.fromAccount = &accounts[0];
+        t1.fromAccount->deposit(t1.amount);
         strcpy_s(t1.date, "2026-01-15");
         g_transactions.push_back(t1);
 
         Transaction t2;
         t2.type = TransactionType::Expense;
         strcpy_s(t2.description, "Grocery Shopping");
-        strcpy_s(t2.category, "Food");
+        t2.category = "FOOD";
         t2.amount = 150.0f;
+        t2.fromAccount = &accounts[1];
+        t2.fromAccount->withdraw(t2.amount);
         strcpy_s(t2.date, "2026-01-20");
         g_transactions.push_back(t2);
 
         Transaction t3;
         t3.type = TransactionType::Transfer;
         strcpy_s(t3.description, "Savings Transfer");
-        strcpy_s(t3.fromAccount, "Checking");
-        strcpy_s(t3.toAccount, "Savings");
+
+        t3.fromAccount = &accounts[0];
+        t3.toAccount = &accounts[1];
+
         t3.amount = 500.0f;
+        t3.fromAccount->transfer(t3.toAccount, t3.amount);
         strcpy_s(t3.date, "2026-01-25");
         g_transactions.push_back(t3);
     }
@@ -211,7 +291,7 @@ int main()
         processInput(window);
         glfwPollEvents();
 
-        //get current framebuffer size
+        // get window size
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
 
@@ -222,26 +302,25 @@ int main()
 
         // Main Finance Tracker Window
         {
-            /*ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);*/
-
             ImGui::SetNextWindowPos(ImVec2(0, 0));
-            ImGui::SetNextWindowSize(ImVec2(display_w, display_h));
+            ImGui::SetNextWindowSize(ImVec2((float)display_w, (float)display_h));
 
-            //remove padding
-            ImGui::Begin("Finance Tracker", nullptr, 
-                ImGuiWindowFlags_NoResize |
-                ImGuiWindowFlags_NoMove |
-                ImGuiWindowFlags_NoCollapse |
-                ImGuiWindowFlags_NoSavedSettings | 
-                ImGuiWindowFlags_NoBringToFrontOnFocus |
-                ImGuiWindowFlags_MenuBar);
+            // remove padding
+            ImGui::Begin("Finance Tracker", nullptr,
+                         ImGuiWindowFlags_NoResize |
+                             ImGuiWindowFlags_NoMove |
+                             ImGuiWindowFlags_NoCollapse |
+                             ImGuiWindowFlags_NoSavedSettings |
+                             ImGuiWindowFlags_NoBringToFrontOnFocus |
+                             ImGuiWindowFlags_MenuBar);
 
             // Menu bar
             if (ImGui::BeginMenuBar())
             {
                 if (ImGui::BeginMenu("File"))
                 {
+                    if (ImGui::MenuItem("Categories"))
+                        show_category_window = true;
                     if (ImGui::MenuItem("Exit"))
                         glfwSetWindowShouldClose(window, true);
                     ImGui::EndMenu();
@@ -311,7 +390,7 @@ int main()
                                     ImGui::TableNextColumn();
                                     ImGui::Text("%s", t.description);
                                     ImGui::TableNextColumn();
-                                    ImGui::Text("%s", t.category);
+                                    ImGui::Text(t.category.c_str());
                                     ImGui::TableNextColumn();
                                     ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "+$%.2f", t.amount);
                                 }
@@ -346,7 +425,7 @@ int main()
                                     ImGui::TableNextColumn();
                                     ImGui::Text("%s", t.description);
                                     ImGui::TableNextColumn();
-                                    ImGui::Text("%s", t.category);
+                                    ImGui::Text(t.category.c_str());
                                     ImGui::TableNextColumn();
                                     ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "-$%.2f", t.amount);
                                 }
@@ -382,9 +461,9 @@ int main()
                                     ImGui::TableNextColumn();
                                     ImGui::Text("%s", t.description);
                                     ImGui::TableNextColumn();
-                                    ImGui::Text("%s", t.fromAccount);
+                                    ImGui::Text(t.fromAccount->accountName.c_str());
                                     ImGui::TableNextColumn();
-                                    ImGui::Text("%s", t.toAccount);
+                                    ImGui::Text(t.toAccount->accountName.c_str());
                                     ImGui::TableNextColumn();
                                     ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "$%.2f", t.amount);
                                 }
@@ -403,18 +482,22 @@ int main()
                 ImGui::Text("All Transactions");
                 ImGui::Separator();
 
-                if (ImGui::BeginTable("AllTransactionsTable", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable))
+                if (ImGui::BeginTable("AllTransactionsTable", 8, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable))
                 {
                     ImGui::TableSetupColumn("Date", ImGuiTableColumnFlags_WidthFixed, 100.0f);
                     ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80.0f);
                     ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
-                    ImGui::TableSetupColumn("Category/Account", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+                    ImGui::TableSetupColumn("Account", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                    ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 150.0f);
                     ImGui::TableSetupColumn("Details", ImGuiTableColumnFlags_WidthFixed, 100.0f);
                     ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                    ImGui::TableSetupColumn("Modify", ImGuiTableColumnFlags_WidthFixed, 50.0f);
                     ImGui::TableHeadersRow();
 
-                    for (size_t i = 0; i < g_transactions.size(); i++)
+                    for (int i = 0; i < g_transactions.size(); i++)
                     {
+                        ImGui::PushID(i);
+
                         const auto &t = g_transactions[i];
                         ImGui::TableNextRow();
 
@@ -435,17 +518,21 @@ int main()
                         ImGui::TableNextColumn();
                         ImGui::Text("%s", t.description);
 
-                        // Category/Account
+                        // Account
                         ImGui::TableNextColumn();
-                        if (t.type == TransactionType::Transfer)
-                            ImGui::Text("%s", t.fromAccount);
-                        else
-                            ImGui::Text("%s", t.category);
+                        ImGui::Text(t.fromAccount->accountName.c_str());
+
+                        // Category
+                        ImGui::TableNextColumn();
+                        ImGui::Text(t.category.c_str());
 
                         // Details (To account for transfers, empty for others)
                         ImGui::TableNextColumn();
                         if (t.type == TransactionType::Transfer)
-                            ImGui::Text("-> %s", t.toAccount);
+                        {
+                            std::string toAccountString = "-> " + t.toAccount->accountName;
+                            ImGui::Text(toAccountString.c_str());
+                        }
                         else
                             ImGui::Text("-");
 
@@ -457,19 +544,287 @@ int main()
                             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "-$%.2f", t.amount);
                         else
                             ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "$%.2f", t.amount);
+
+                        ImGui::TableNextColumn();
+
+                        if (ImGui::Button("Delete"))
+                        {
+                            // take the money from account if its income and vice versa
+                            if (g_transactions[i].type == TransactionType::Income)
+                            {
+                                g_transactions[i].fromAccount->withdraw(g_transactions[i].amount);
+                            }
+                            else if (g_transactions[i].type == TransactionType::Expense)
+                            {
+                                g_transactions[i].fromAccount->deposit(g_transactions[i].amount);
+                            }
+                            else
+                            {
+                                // basically undos the transfer
+                                g_transactions[i].fromAccount->deposit(g_transactions[i].amount);
+                                g_transactions[i].toAccount->withdraw(g_transactions[i].amount);
+                            }
+
+                            g_transactions.erase(g_transactions.begin() + i);
+                        }
+
+                        ImGui::PopID();
                     }
                     ImGui::EndTable();
                 }
             }
-
             ImGui::Text("\nTotal Transactions: %zu", g_transactions.size());
+
+            ImGui::Separator();
+
+            ImGui::Text("=== Accounts Breakdown ===");
+
+            if (ImGui::BeginTable("AccountsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+            {
+                ImGui::TableSetupColumn("Account", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                ImGui::TableSetupColumn("Modify", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                ImGui::TableHeadersRow();
+
+                for (int i = 0; i < accounts.size(); i++)
+                {
+                    if (accounts[i].deleted)
+                        continue; // skip if deleted
+
+                    ImGui::PushID(i);
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text(accounts[i].accountName.c_str());
+                    ImGui::TableNextColumn();
+
+                    // tried to to ternary here but idk why it didnt work so i did this instead
+                    ImVec4 green = {0.4f, 1.0f, 0.4f, 1.0f};
+                    ImVec4 red = {1.0f, 0.4f, 0.4f, 1.0f};
+
+                    ImVec4 textColour = accounts[i].amount > 0.0f ? green : red;
+                    ImGui::TextColored(textColour, "$%.2f", accounts[i].amount);
+
+                    ImGui::TableNextColumn();
+                    if (ImGui::Button("Delete"))
+                    {
+                        if (accounts.size() > 1)
+                        {
+
+                            // there is balance inside
+                            if (accounts[i].amount != 0)
+                            {
+                                deleteBufferAccountIndex = i;
+                                show_delete_account = true;
+                            }
+                            else
+                            {
+                                accounts.erase(accounts.begin() + i);
+                            }
+                        }
+                    }
+
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
+            }
+
+            if (ImGui::Button("Add Account"))
+            {
+                new_account = Account();
+                show_add_account = true;
+            }
+
+            ImGui::End();
+        }
+
+        //  add account indow
+        if (show_add_account)
+        {
+            ImGui::SetWindowSize(ImVec2(400, 350), ImGuiCond_FirstUseEver);
+            ImGui::Begin("Add Account", &show_add_account);
+
+            ImGui::SetNextItemWidth(200);
+            if (ImGui::InputText("##AccountName", _inputAccountBuffer, sizeof(_inputAccountBuffer)))
+            {
+            }
+            ImGui::SameLine();
+            ImGui::Text("Account Name");
+
+            ImGui::InputFloat("Amount ($)", &new_account.amount, 1.0f, 100.0f, "%.2f");
+
+            _inputFieldEmpty = _inputAccountBuffer[0] == '\0';
+            if (_inputFieldEmpty)
+                ImGui::BeginDisabled();
+
+            if (ImGui::Button("Add"))
+            {
+                new_account.accountName = _inputAccountBuffer;
+
+                // make a new account and set add to list
+                accounts.emplace_back(new_account);
+
+                if (new_account.amount)
+                {
+                    new_transaction = Transaction();
+
+                    new_transaction.amount = new_account.amount;
+                    new_transaction.fromAccount = &accounts[accounts.size() - 1]; // sets to the last one since u place it at the back
+                    new_transaction.category = "NEW ACCOUNT";
+                    new_transaction.type = TransactionType::Income;
+                    g_transactions.emplace_back(new_transaction);
+
+                    new_transaction = Transaction();
+                }
+
+                // need to clear the string
+                _inputAccountBuffer[0] = '\0';
+                show_add_account = false;
+                new_account = Account(); // reset
+            }
+
+            if (_inputFieldEmpty)
+                ImGui::EndDisabled();
+
+            ImGui::End();
+        }
+
+        //  delete account window
+        if (show_delete_account)
+        {
+            ImGui::SetWindowSize(ImVec2(400, 350), ImGuiCond_FirstUseEver);
+            ImGui::Begin("Delete Account", &show_delete_account);
+
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                               "There is an outstanding balance of $%.2f in %s", accounts[deleteBufferAccountIndex].amount, accounts[deleteBufferAccountIndex].accountName.c_str());
+            ImGui::Text("Select an Account to transfer the balance to:");
+
+            if (ImGui::BeginCombo("##Account", accounts[_fromAccountIndex].accountName.c_str()))
+            {
+                for (int i = 0; i < accounts.size(); ++i)
+                {
+                    if (accounts[i].deleted)
+                        continue; // skip if deleted
+                    // skip the one being deleted
+                    if (i == deleteBufferAccountIndex)
+                        continue;
+
+                    const bool isSelected = (_fromAccountIndex == i);
+                    if (ImGui::Selectable(accounts[i].accountName.c_str(), isSelected))
+                        _fromAccountIndex = i;
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            transferBufferAccountIndex = _fromAccountIndex;
+            ImGui::SameLine();
+            ImGui::Text("Account");
+
+            if (ImGui::Button("Transfer"))
+            {
+                // check that the selected account is not the same
+                if (accounts[transferBufferAccountIndex] != accounts[deleteBufferAccountIndex])
+                {
+
+                    std::string deletedAccountName = accounts[deleteBufferAccountIndex].accountName;
+                    accounts[deleteBufferAccountIndex].transfer(&accounts[transferBufferAccountIndex], accounts[deleteBufferAccountIndex].amount);
+                    accounts[deleteBufferAccountIndex].deleted = true;
+
+                    for (Transaction &t : g_transactions)
+                    {
+                        if (t.fromAccount->accountName == deletedAccountName)
+                        {
+                            t.fromAccount = &accounts[transferBufferAccountIndex];
+                        }
+                        if (t.toAccount && t.toAccount->accountName == deletedAccountName)
+                        {
+                            t.toAccount = &accounts[transferBufferAccountIndex];
+                        }
+                    }
+
+                    show_delete_account = false;
+
+                    // reset
+                    transferBufferAccountIndex = -1;
+                    deleteBufferAccountIndex = -1;
+
+                    for (int i = 0; i < accounts.size(); ++i)
+                    {
+                        if (accounts[i].deleted)
+                            continue;
+
+                        // finds the first none deleted account
+                        _fromAccountIndex = i;
+                        _toAccountIndex = i;
+                        break;
+                    }
+                }
+            }
+            ImGui::End();
+        }
+
+        // category window
+        if (show_category_window)
+        {
+            ImGui::SetWindowSize(ImVec2(400, 350), ImGuiCond_FirstUseEver);
+            ImGui::Begin("Categories", &show_category_window);
+
+            ImGui::Text("=== Categories ===");
+            ImGui::SetNextItemWidth(200);
+            if (ImGui::InputText("##CategoryName", _inputCategoryBuffer, sizeof(_inputCategoryBuffer)))
+            {
+            }
+            ImGui::SameLine();
+
+            _inputFieldEmpty = _inputCategoryBuffer[0] == '\0';
+            if (_inputFieldEmpty)
+                ImGui::BeginDisabled();
+
+            if (ImGui::Button("Add"))
+            {
+                categories.emplace_back(_inputCategoryBuffer);
+                // need to clear the string
+                _inputCategoryBuffer[0] = '\0';
+            }
+
+            if (_inputFieldEmpty)
+                ImGui::EndDisabled();
+
+            if (ImGui::BeginTable("CategoryTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+            {
+                ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Modify", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                ImGui::TableHeadersRow();
+
+                for (int i = 0; i < categories.size(); i++)
+                {
+                    ImGui::PushID(i);
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text(categories[i].c_str());
+                    ImGui::TableNextColumn();
+
+                    if (ImGui::Button("Delete"))
+                    {
+                        if (categories.size() > 1)
+                        {
+                            categories.erase(categories.begin() + i); // delete currently selected category
+                        }
+                    }
+
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
+            }
+
             ImGui::End();
         }
 
         // Add Transaction Window
         if (show_add_transaction_window)
         {
-
             ImGui::SetNextWindowSize(ImVec2(400, 350), ImGuiCond_FirstUseEver);
             ImGui::Begin("Add New Transaction", &show_add_transaction_window);
 
@@ -481,10 +836,47 @@ int main()
                     selected_tab_for_new = 0;
                     new_transaction.type = TransactionType::Income;
 
-                    ImGui::InputText("Date", new_transaction.date, sizeof(new_transaction.date));
-                    ImGui::InputText("Description", new_transaction.description, sizeof(new_transaction.description));
-                    ImGui::InputText("Category", new_transaction.category, sizeof(new_transaction.category));
                     ImGui::InputFloat("Amount ($)", &new_transaction.amount, 1.0f, 100.0f, "%.2f");
+
+                    ImGui::InputText("Description", new_transaction.description, sizeof(new_transaction.description));
+
+                    if (ImGui::BeginCombo("##Account", accounts[_fromAccountIndex].accountName.c_str()))
+                    {
+                        for (int i = 0; i < accounts.size(); ++i)
+                        {
+                            if (accounts[i].deleted)
+                                continue; // skip if deleted
+
+                            const bool isSelected = (_fromAccountIndex == i);
+                            if (ImGui::Selectable(accounts[i].accountName.c_str(), isSelected))
+                                _fromAccountIndex = i;
+                            if (isSelected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    new_transaction.fromAccount = &accounts[_fromAccountIndex];
+                    ImGui::SameLine();
+                    ImGui::Text("Account");
+
+                    // new category using strings
+                    if (ImGui::BeginCombo("##Category", categories[_categoryIndex].c_str()))
+                    {
+                        for (int i = 0; i < categories.size(); ++i)
+                        {
+                            const bool isSelected = (_categoryIndex == i);
+                            if (ImGui::Selectable(categories[i].c_str(), isSelected))
+                                _categoryIndex = i;
+                            if (isSelected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    new_transaction.category = categories[_categoryIndex].c_str();
+                    ImGui::SameLine();
+                    ImGui::Text("Category");
+
+                    ImGui::InputText("Date", new_transaction.date, sizeof(new_transaction.date));
 
                     ImGui::Spacing();
                     if (ImGui::Button("Add Income", ImVec2(120, 30)))
@@ -492,6 +884,8 @@ int main()
                         if (new_transaction.amount > 0)
                         {
                             g_transactions.push_back(new_transaction);
+                            new_transaction.fromAccount->deposit(new_transaction.amount);
+
                             new_transaction = Transaction();
                             show_add_transaction_window = false;
                         }
@@ -505,10 +899,46 @@ int main()
                     selected_tab_for_new = 1;
                     new_transaction.type = TransactionType::Expense;
 
-                    ImGui::InputText("Date", new_transaction.date, sizeof(new_transaction.date));
-                    ImGui::InputText("Description", new_transaction.description, sizeof(new_transaction.description));
-                    ImGui::InputText("Category", new_transaction.category, sizeof(new_transaction.category));
                     ImGui::InputFloat("Amount ($)", &new_transaction.amount, 1.0f, 100.0f, "%.2f");
+                    ImGui::InputText("Description", new_transaction.description, sizeof(new_transaction.description));
+
+                    if (ImGui::BeginCombo("##Account", accounts[_fromAccountIndex].accountName.c_str()))
+                    {
+                        for (int i = 0; i < accounts.size(); ++i)
+                        {
+                            if (accounts[i].deleted)
+                                continue; // skip if deleted
+
+                            const bool isSelected = (_fromAccountIndex == i);
+                            if (ImGui::Selectable(accounts[i].accountName.c_str(), isSelected))
+                                _fromAccountIndex = i;
+                            if (isSelected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    new_transaction.fromAccount = &accounts[_fromAccountIndex];
+                    ImGui::SameLine();
+                    ImGui::Text("Account");
+
+                    // new category using strings
+                    if (ImGui::BeginCombo("##Category", categories[_categoryIndex].c_str()))
+                    {
+                        for (int i = 0; i < categories.size(); ++i)
+                        {
+                            const bool isSelected = (_categoryIndex == i);
+                            if (ImGui::Selectable(categories[i].c_str(), isSelected))
+                                _categoryIndex = i;
+                            if (isSelected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    new_transaction.category = categories[_categoryIndex].c_str();
+                    ImGui::SameLine();
+                    ImGui::Text("Category");
+
+                    ImGui::InputText("Date", new_transaction.date, sizeof(new_transaction.date));
 
                     ImGui::Spacing();
                     if (ImGui::Button("Add Expense", ImVec2(120, 30)))
@@ -516,6 +946,8 @@ int main()
                         if (new_transaction.amount > 0)
                         {
                             g_transactions.push_back(new_transaction);
+                            new_transaction.fromAccount->withdraw(new_transaction.amount);
+
                             new_transaction = Transaction();
                             show_add_transaction_window = false;
                         }
@@ -529,11 +961,48 @@ int main()
                     selected_tab_for_new = 2;
                     new_transaction.type = TransactionType::Transfer;
 
-                    ImGui::InputText("Date", new_transaction.date, sizeof(new_transaction.date));
-                    ImGui::InputText("Description", new_transaction.description, sizeof(new_transaction.description));
-                    ImGui::InputText("From Account", new_transaction.fromAccount, sizeof(new_transaction.fromAccount));
-                    ImGui::InputText("To Account", new_transaction.toAccount, sizeof(new_transaction.toAccount));
                     ImGui::InputFloat("Amount ($)", &new_transaction.amount, 1.0f, 100.0f, "%.2f");
+                    ImGui::InputText("Description", new_transaction.description, sizeof(new_transaction.description));
+
+                    if (ImGui::BeginCombo("##FromAccount", accounts[_fromAccountIndex].accountName.c_str()))
+                    {
+                        for (int i = 0; i < accounts.size(); ++i)
+                        {
+                            if (accounts[i].deleted)
+                                continue; // skip if deleted
+
+                            const bool isSelected = (_fromAccountIndex == i);
+                            if (ImGui::Selectable(accounts[i].accountName.c_str(), isSelected))
+                                _fromAccountIndex = i;
+                            if (isSelected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("From Account");
+                    new_transaction.fromAccount = &accounts[_fromAccountIndex];
+
+                    if (ImGui::BeginCombo("##ToAccount", accounts[_toAccountIndex].accountName.c_str()))
+                    {
+                        for (int i = 0; i < accounts.size(); ++i)
+                        {
+                            if (accounts[i].deleted)
+                                continue; // skip if deleted
+
+                            const bool isSelected = (_toAccountIndex == i);
+                            if (ImGui::Selectable(accounts[i].accountName.c_str(), isSelected))
+                                _toAccountIndex = i;
+                            if (isSelected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("To Account");
+                    new_transaction.toAccount = &accounts[_toAccountIndex];
+
+                    ImGui::InputText("Date", new_transaction.date, sizeof(new_transaction.date));
 
                     ImGui::Spacing();
                     if (ImGui::Button("Add Transfer", ImVec2(120, 30)))
@@ -541,6 +1010,8 @@ int main()
                         if (new_transaction.amount > 0)
                         {
                             g_transactions.push_back(new_transaction);
+                            new_transaction.fromAccount->transfer(new_transaction.toAccount, new_transaction.amount);
+
                             new_transaction = Transaction();
                             show_add_transaction_window = false;
                         }
@@ -563,8 +1034,6 @@ int main()
 
         // Rendering
         ImGui::Render();
-        /*int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);*/
         glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
